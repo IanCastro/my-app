@@ -5,107 +5,179 @@ import axios from 'axios';
 
 var main;
 var items = [];
+var server = 'http://localhost:3001/';
+
+class LoginScreen extends Component {
+	render() {
+		return (
+			<div id='boxLogin'>
+				<form onSubmit={this.handleSubmit}>
+					<h2>Escolha o Usuario</h2>
+					<input id='loginInput' onChange={this.handleChangeUser} value={main.state.user} />
+					<button id='btLogin' onClick={this.handleLogin} >Login</button>
+				</form>
+			</div>
+		);
+	}
+
+	handleSubmit(e) {
+		e.preventDefault();
+		if(main.state.text.length==0)return;
+		var id = Date.now()
+		items.push({title: main.state.text, body: '', idnote: id})
+		axios.post(server + 'add', {idnote:id, title: main.state.text, body: '', user: main.state.user})
+		main.setState({text: '', idItems: items.length - 1});
+		main.closeLightBox();
+	}
+
+	handleChangeUser(e) {
+		main.setState({user: e.target.value});
+	}
+
+	handleLogin(e) {
+		axios.get(server + 'user=' + main.state.user)
+			.then(function (response) {
+				items = response.data;
+				var newId = items.length > 0 ? 0 : undefined;
+				main.setState({idItems:newId, searchText: ''});
+				main.showLoggedScreen();
+			});
+	}
+}
+
 class NoteApp extends Component {
 	constructor(props) {
 		super(props);
-		this.handleChangeUser = this.handleChangeUser.bind(this);
-		this.handleRemove = this.handleRemove.bind(this);
-		this.handleChangeText = this.handleChangeText.bind(this);
-		this.handleSubmit = this.handleSubmit.bind(this);
-		this.handleChangeTitle = this.handleChangeTitle.bind(this);
-		this.handleChangeBody = this.handleChangeBody.bind(this);
-		this.state = {text: '', user: '', idItems:undefined};
+		this.state = {text: '', user: '', idItems:undefined, searchText: ''};
 		main = this;
+		main.showScreenLogin();
 	}
 
 	render() {
 		return (
 			<div>
-				<center><h1>Minhas Anotações</h1></center>
-				<div className='dclass'>
-					<form onSubmit={this.handleSubmit}>
-						<center><b>Escolha o Usuario</b></center>
-						<input onChange={this.handleChangeUser} value={this.state.user} />
+				{/*<div id='boxLogin'>
+					<form onSubmit={main.handleSubmit}>
+						<h2>Escolha o Usuario</h2>
+						<input id='loginInput' onChange={main.handleChangeUser} value={main.state.user} />
+						<button id='btLogin' onClick={main.handleLogin} >Login</button>
 					</form>
-				</div>
-				{this.state.user === '' ? '' :
-					<div className='dclass'>
-						<center><b>Titulo da anotação</b></center>
-						<form onSubmit={this.handleSubmit}>
-							<input onChange={this.handleChangeText} value={this.state.text} />
-							<button>{'Adicionar nova anotação'}</button>
-						</form>
-						<p>Outras anotações</p>
-						<NoteList />
+				</div>*/}
+				<LoginScreen />
+				<div id="loggedScreen">
+					<div id="barTop">
+						<h3>{main.state.user}</h3>
+						<input id='btLogout' type='button' onClick={main.handleLogout} value={'Logout'} />
 					</div>
-				}
-				{this.state.idItems === undefined ? '': 
-					<div className='dclass'> 
-						<div>
-							<input onChange={this.handleChangeTitle} id={items[this.state.idItems].idnote} value={items[this.state.idItems].title} />
-							<br />
-							<textarea style={{width:'700px', height:'300px'}} onChange={this.handleChangeBody} id={items[this.state.idItems].idnote} value={items[this.state.idItems].body} />
-							<br />
-							<input value="remover anotação" type="button" onClick={this.handleRemove} />
+
+					<div id='noteArea'>
+						<button id="btAdd" onClick={main.showAddNote} >Adicionar Anotação</button>
+
+						<div id="searchArea">
+							<input onChange={main.handleChangeSearchBox} value={main.state.searchText} />
+							<div><button onClick={main.handleSearch} ></button></div>
 						</div>
+
+						{items.length === 0 ? '' :
+							<div>
+								<NoteList />
+							</div>
+						} 
 					</div>
-				}
+
+					{main.state.idItems === undefined ? '': 
+						<div id='contentArea'> 
+							<div id="titleNote">
+								<input onChange={main.handleChangeTitle} id={items[main.state.idItems].idnote} value={items[main.state.idItems].title} />
+								<button onClick={main.handleRemove} >Excluir</button>
+							</div>
+							<div id="areaText">
+								<textarea onChange={main.handleChangeBody} id={items[main.state.idItems].idnote} value={items[main.state.idItems].body} />
+							</div>
+						</div>
+					}
+				</div>
+
+				<div id="novaNota" className="lightBoxBg">
+					<div className="bg"  onClick={main.closeLightBox}></div>
+					<div className="lightBox">
+						<h4>Nova Anotação</h4>
+						<form onSubmit={main.handleSubmit}>
+							<input onChange={main.handleChangeText} value={main.state.text} />
+							<button>Adicionar</button>
+						</form>
+					</div>
+				</div>
 			</div>
 		);
 	}
 
-	handleChangeUser(e) {
-		var val = e.target.value
-		axios.get('http://localhost:3001/user=' + e.target.value)
-			.then(function (response) {
-				items = response.data;
-				var newId = items.length > 0 ? 0 : undefined;
-				main.setState({user: val, idItems:newId});
-			});
+	showScreenLogin(){
+		document.getElementById("root").className = "unlogged";
+	}
+
+	showLoggedScreen(){
+		document.getElementById("root").className = "logged";
+	}
+
+	showAddNote(){
+		document.getElementById("novaNota").style.display = "block";
+	}
+
+	closeLightBox(){
+		document.getElementById("novaNota").style.display = "none";
+	}
+
+	handleLogout(e) {
+		main.showScreenLogin();
 	}
 	
 	handleRemove(e) {
-		axios.get('http://localhost:3001/remove=' + items[this.state.idItems].idnote)
-		items.splice(this.state.idItems, 1);
+		axios.get(server + 'remove=' + items[main.state.idItems].idnote)
+		items.splice(main.state.idItems, 1);
 		var newId = items.length > 0 ? 0 : undefined;
-		this.setState({idItems: newId});
+		main.setState({idItems: newId});
 	}
 	
 	handleChangeText(e) {
-		this.setState({text: e.target.value});
+		main.setState({text: e.target.value});
 	}
 
 	handleChangeTitle(e) {
-		items[this.state.idItems].title = e.target.value
-		axios.post('http://localhost:3001/changetitle', {idnote:e.target.id, title: e.target.value})
-		this.setState({})
+		items[main.state.idItems].title = e.target.value
+		axios.post(server + 'changetitle', {idnote:e.target.id, title: e.target.value})
+		main.setState({})
 	}
 
 	handleChangeBody(e) {
-		items[this.state.idItems].body = e.target.value
-		axios.post('http://localhost:3001/changebody', {idnote:e.target.id, body: e.target.value})
-		this.setState({})
+		items[main.state.idItems].body = e.target.value
+		axios.post(server + 'changebody', {idnote:e.target.id, body: e.target.value})
+		main.setState({})
 	}
 
-	handleSubmit(e) {
-		e.preventDefault();
-		var id = Date.now()
-		items.push({title: this.state.text, body: '', idnote: id})
-		axios.post('http://localhost:3001/add', {idnote:id, title: this.state.text, body: '', user: this.state.user})
-		this.setState({text: '', idItems: items.length - 1});
+	handleChangeSearchBox(e) {
+		main.setState({searchText: e.target.value});
+		main.handleSearch(e);
+	}
+
+	handleSearch(e) {
+		axios.post(server + 'search', {user: main.state.user, text: e.target.value})
+			.then(function (response) {
+				items = response.data;
+				var newId = items.length > 0 ? 0 : undefined;
+				main.setState({idItems:newId});
+			});
 	}
 }
 
 class NoteList extends Component {
 	render() {
 		return (
-			<ul>
+			<div id="listNotes">
 				{Object.keys(items).map(id => (
-					<li key={"li"+id}>
-						<input id={id} value={items[id].title} type="button" onClick={this.handleClick} />
-					</li>
+					<button id={id} onClick={this.handleClick} >{items[id].title}</button>
 				))}
-			</ul>
+			</div>
 		);
 	}
 
